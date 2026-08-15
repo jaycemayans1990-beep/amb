@@ -16,7 +16,12 @@ local State = {
     Smoothness = 0.3,
     FOV = 150,
     ShowFOV = false,
-    ESP = false
+    ESP = false,
+    
+    -- New Features State
+    SpeedHack = false,
+    SpeedValue = 50,
+    Invisible = false
 }
 
 -- 3. Dynamic Camera Helper
@@ -163,11 +168,10 @@ local function processESP()
             if not highlight then  
                 highlight = Instance.new("Highlight")  
                 highlight.Name = "ESP_Highlight"  
-                highlight.FillColor = Color3.fromRGB(180, 0, 255)
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
-                highlight.FillTransparency = 0.15
-                highlight.OutlineTransparency = 0
-                highlight.Parent = player.Character
+                highlight.FillColor = Color3.fromRGB(255, 50, 50)  
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)  
+                highlight.FillTransparency = 0.5  
+                highlight.Parent = player.Character  
             end  
         else  
             if player.Character then  
@@ -178,7 +182,20 @@ local function processESP()
     end
 end
 
--- 11. Main Loop Handling
+-- 11. Helper Functions for New Features
+local function resetCharacterTransparency()
+    local character = LocalPlayer.Character
+    if not character then return end
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Transparency = 0
+        elseif part:IsA("Decal") then
+            part.Transparency = 0
+        end
+    end
+end
+
+-- 12. Main Loop Handling (Heartbeat & RenderStepped)
 RunService.RenderStepped:Connect(function()
     local camera = getCamera()
     
@@ -190,9 +207,40 @@ RunService.RenderStepped:Connect(function()
     processESP()
 end)
 
--- 12. Wind UI Configuration
+-- ควบคุมความเร็วและการล่องหนผ่านทาง Physics Loop เพื่อความเสถียร
+RunService.Heartbeat:Connect(function()
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    -- Speed Hack Process
+    if State.SpeedHack then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = State.SpeedValue
+        end
+    end
+
+    -- Invisibility Process (Client-side Rendering Control)
+    if State.Invisible then
+        for _, part in ipairs(character:GetDescendants()) do
+            if (part:IsA("BasePart") and part.Name ~= "HumanoidRootPart") or part:IsA("Decal") then
+                part.Transparency = 1
+            end
+        end
+    end
+end)
+
+-- คืนค่าความโปร่งใสเมื่อเปลี่ยนตัวละครหรือปิดฟีเจอร์
+LocalPlayer.CharacterAdded:Connect(function(character)
+    if not State.Invisible then
+        resetCharacterTransparency()
+    end
+end)
+
+
+-- 13. Wind UI Configuration
 local Window = WindUI:CreateWindow({
-    Title = "ADVANCED AIMBOT SYSTEM (FIXED)",
+    Title = "ADVANCED AIMBOT SYSTEM (UPDATED)",
     Icon = "crosshair",
     Author = "WindUI Version",
     Folder = "WindUI_Config",
@@ -290,5 +338,53 @@ VisualsTab:Toggle({
     Value = State.ESP,
     Callback = function(Value)
         State.ESP = Value
+    end,
+})
+
+-- Player Tab (NEW TAB ADDED)
+local PlayerTab = Window:Tab({
+    Title = "Player",
+    Icon = "user",
+})
+
+PlayerTab:Section({ Title = "Movement Modification" })
+
+PlayerTab:Toggle({
+    Title = "Enable Speed Loop",
+    Value = State.SpeedHack,
+    Callback = function(Value)
+        State.SpeedHack = Value
+        if not Value and LocalPlayer.Character then
+            local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = 16 -- คืนค่าความเร็วเริ่มต้น (Default WalkSpeed)
+            end
+        end
+    end,
+})
+
+PlayerTab:Slider({
+    Title = "Adjust WalkSpeed",
+    Step = 1,
+    Value = {
+        Min = 16,
+        Max = 300,
+        Default = State.SpeedValue
+    },
+    Callback = function(Value)
+        State.SpeedValue = Value
+    end,
+})
+
+PlayerTab:Section({ Title = "Character Utilities" })
+
+PlayerTab:Toggle({
+    Title = "Invisible Character (ล่องหน)",
+    Value = State.Invisible,
+    Callback = function(Value)
+        State.Invisible = Value
+        if not Value then
+            resetCharacterTransparency() -- คืนค่าความโปร่งใสเป็นปกติเมื่อปิดใช้งาน
+        end
     end,
 })

@@ -17,7 +17,8 @@ local State = {
     Smoothness = 0.3,
     FOV = 150,
     ShowFOV = false,
-    ESP = false
+    ESP = false,
+    NameESP = false -- เพิ่มสถานะ Name ESP
 }
 
 -- 3. Ping Helper Function
@@ -160,7 +161,7 @@ local function processAimbot(deltaTime)
     end
 end
 
--- 11. ESP Management
+-- 11. ESP Management (Highlight Wallhack)
 local function clearESP()
     for _, player in ipairs(Players:GetPlayers()) do
         if player.Character then
@@ -199,7 +200,62 @@ local function processESP()
     end
 end
 
--- 12. Main Loop Handling
+-- 12. Name ESP Management (ป้ายชื่อผู้เล่นทะลุกำแพง)
+local function clearNameESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("Head") then
+            local tag = player.Character.Head:FindFirstChild("NameESP_Tag")
+            if tag then
+                tag:Destroy()
+            end
+        end
+    end
+end
+
+local function processNameESP()
+    if not State.NameESP then
+        clearNameESP()
+        return
+    end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if isValidEnemy(player) then
+            local char = player.Character
+            local head = char and char:FindFirstChild("Head")
+            if head then
+                local tag = head:FindFirstChild("NameESP_Tag")
+                if not tag then
+                    tag = Instance.new("BillboardGui")
+                    tag.Name = "NameESP_Tag"
+                    tag.Adornee = head
+                    tag.Size = UDim2.new(0, 150, 0, 30)
+                    tag.StudsOffset = Vector3.new(0, 2, 0)
+                    tag.AlwaysOnTop = true
+                    tag.Parent = head
+
+                    local label = Instance.new("TextLabel")
+                    label.Name = "NameLabel"
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.BackgroundTransparency = 1
+                    label.Text = player.DisplayName .. " (@" .. player.Name .. ")"
+                    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    label.TextStrokeTransparency = 0.2
+                    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                    label.Font = Enum.Font.SourceSansBold
+                    label.TextSize = 12
+                    label.Parent = tag
+                end
+            end
+        else
+            if player.Character and player.Character:FindFirstChild("Head") then
+                local tag = player.Character.Head:FindFirstChild("NameESP_Tag")
+                if tag then tag:Destroy() end
+            end
+        end
+    end
+end
+
+-- 13. Main Loop Handling
 RunService.RenderStepped:Connect(function(deltaTime)
     local camera = getCamera()
     
@@ -209,9 +265,10 @@ RunService.RenderStepped:Connect(function(deltaTime)
       
     processAimbot(deltaTime)  
     processESP()
+    processNameESP()
 end)
 
--- 13. Custom GUI Construction (Pure Luau with PiP Support)
+-- 14. Custom GUI Construction (Pure Luau with PiP Support)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SnyX_CustomAimbotUI"
 ScreenGui.ResetOnSpawn = false
@@ -469,6 +526,7 @@ createToggle("Team Check", State.TeamCheck, function(v) State.TeamCheck = v end)
 createToggle("Wall Check", State.WallCheck, function(v) State.WallCheck = v end)
 createToggle("Prediction Engine", State.Prediction, function(v) State.Prediction = v end)
 createToggle("ESP Wallhack", State.ESP, function(v) State.ESP = v end)
+createToggle("Name ESP", State.NameESP, function(v) State.NameESP = v end) -- ปุ่มเปิด-ปิด Name ESP
 
 createSlider("Bullet Speed", 500, 5000, State.BulletSpeed, 100, function(v) State.BulletSpeed = v end)
 createSlider("Smoothness", 0.05, 1, State.Smoothness, 0.05, function(v) State.Smoothness = v end)

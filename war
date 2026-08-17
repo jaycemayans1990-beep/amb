@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Stats = game:GetService("Stats")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -210,122 +211,278 @@ RunService.RenderStepped:Connect(function(deltaTime)
     processESP()
 end)
 
--- 13. Rayfield UI Configuration
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- 13. Custom GUI Construction (Pure Luau with PiP Support)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SnyX_CustomAimbotUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local Window = Rayfield:CreateWindow({
-    Name = "ADVANCED AIMBOT SYSTEM (ACCURATE)",
-    LoadingTitle = "Rayfield Interface",
-    LoadingSubtitle = "by Sirius",
-    ConfigurationSaving = {
-        Enabled = false,
-        FolderName = nil,
-        FileName = "RayfieldConfig"
-    },
-    Discord = {
-        Enabled = false,
-        Invite = "noinvitelink",
-        RememberJoins = true
-    },
-    KeySystem = false
-})
+-- ปุ่ม PiP สี่เหลี่ยมเลื่อนได้ (เปิดใช้งานเมื่อพับหน้าจอ)
+local PiPButton = Instance.new("TextButton")
+PiPButton.Name = "PiPButton"
+PiPButton.Size = UDim2.new(0, 50, 0, 50)
+PiPButton.Position = UDim2.new(0.05, 0, 0.2, 0)
+PiPButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+PiPButton.BorderSizePixel = 0
+PiPButton.Text = "AIM"
+PiPButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+PiPButton.TextSize = 13
+PiPButton.Font = Enum.Font.SourceSansBold
+PiPButton.Active = true
+PiPButton.Draggable = true
+PiPButton.Visible = false
+PiPButton.Parent = ScreenGui
 
--- Combat Tab
-local CombatTab = Window:CreateTab("Combat", 4483362458)
+local PiPCorner = Instance.new("UICorner")
+PiPCorner.CornerRadius = UDim.new(0, 10)
+PiPCorner.Parent = PiPButton
 
-CombatTab:CreateSection("Aimbot Controls")
+local PiPStroke = Instance.new("UIStroke")
+PiPStroke.Color = Color3.fromRGB(180, 0, 255)
+PiPStroke.Thickness = 2
+PiPStroke.Parent = PiPButton
 
-CombatTab:CreateToggle({
-    Name = "Enable Aimbot",
-    CurrentValue = State.Aimbot,
-    Flag = "Toggle_Aimbot",
-    Callback = function(Value)
-        State.Aimbot = Value
-    end,
-})
+-- Main UI Frame (หน้าต่างหลัก)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 290, 0, 360)
+MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
 
-CombatTab:CreateToggle({
-    Name = "Show FOV Circle (แสดงวงกลม FOV)",
-    CurrentValue = State.ShowFOV,
-    Flag = "Toggle_ShowFOV",
-    Callback = function(Value)
-        State.ShowFOV = Value
-    end,
-})
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
 
-CombatTab:CreateToggle({
-    Name = "Team Check (ปิดเมื่อเล่นแบบไม่มีทีม/FFA)",
-    CurrentValue = State.TeamCheck,
-    Flag = "Toggle_TeamCheck",
-    Callback = function(Value)
-        State.TeamCheck = Value
-    end,
-})
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(45, 45, 45)
+MainStroke.Thickness = 1
+MainStroke.Parent = MainFrame
 
-CombatTab:CreateToggle({
-    Name = "Wall Check (ไม่ล็อคเป้าหลังกำแพง)",
-    CurrentValue = State.WallCheck,
-    Flag = "Toggle_WallCheck",
-    Callback = function(Value)
-        State.WallCheck = Value
-    end,
-})
+-- Title Bar (แถบหัวข้อ)
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
 
-CombatTab:CreateToggle({
-    Name = "Prediction Engine (ดักหน้าตามความเร็ว/Ping)",
-    CurrentValue = State.Prediction,
-    Flag = "Toggle_Prediction",
-    Callback = function(Value)
-        State.Prediction = Value
-    end,
-})
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = TitleBar
 
-CombatTab:CreateSlider({
-    Name = "Bullet Speed (ปรับตามชนิดปืนในเกม)",
-    Range = {500, 5000},
-    Increment = 100,
-    Suffix = "",
-    CurrentValue = State.BulletSpeed,
-    Flag = "Slider_BulletSpeed",
-    Callback = function(Value)
-        State.BulletSpeed = Value
-    end,
-})
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(0.7, 0, 1, 0)
+TitleText.Position = UDim2.new(0.04, 0, 0, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Text = "ADVANCED AIMBOT SYSTEM"
+TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleText.TextSize = 13
+TitleText.Font = Enum.Font.SourceSansBold
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Parent = TitleBar
 
-CombatTab:CreateSlider({
-    Name = "Smoothness (ความลื่นไหล)",
-    Range = {0.05, 1},
-    Increment = 0.05,
-    Suffix = "",
-    CurrentValue = State.Smoothness,
-    Flag = "Slider_Smoothness",
-    Callback = function(Value)
-        State.Smoothness = Value
-    end,
-})
+-- ปุ่มพับหน้าจอเป็น PiP (-)
+local CollapseBtn = Instance.new("TextButton")
+CollapseBtn.Size = UDim2.new(0, 24, 0, 24)
+CollapseBtn.Position = UDim2.new(1, -29, 0.5, -12)
+CollapseBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+CollapseBtn.Text = "-"
+CollapseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CollapseBtn.TextSize = 16
+CollapseBtn.Font = Enum.Font.SourceSansBold
+CollapseBtn.Parent = TitleBar
 
-CombatTab:CreateSlider({
-    Name = "Aimbot FOV Range",
-    Range = {50, 500},
-    Increment = 10,
-    Suffix = "",
-    CurrentValue = State.FOV,
-    Flag = "Slider_FOV",
-    Callback = function(Value)
-        State.FOV = Value
-    end,
-})
+local CollapseCorner = Instance.new("UICorner")
+CollapseCorner.CornerRadius = UDim.new(0, 4)
+CollapseCorner.Parent = CollapseBtn
 
--- Visuals Tab
-local VisualsTab = Window:CreateTab("Visuals", 4483362458)
+-- Scrolling Frame สำหรับเนื้อหาด้านใน
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Size = UDim2.new(1, -10, 1, -45)
+ScrollFrame.Position = UDim2.new(0, 5, 0, 40)
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.BorderSizePixel = 0
+ScrollFrame.ScrollBarThickness = 3
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+ScrollFrame.Parent = MainFrame
 
-VisualsTab:CreateSection("ESP Visuals")
+local UIList = Instance.new("UIListLayout")
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Padding = UDim.new(0, 6)
+UIList.Parent = ScrollFrame
 
-VisualsTab:CreateToggle({
-    Name = "ESP Wallhack",
-    CurrentValue = State.ESP,
-    Flag = "Toggle_ESP",
-    Callback = function(Value)
-        State.ESP = Value
-    end,
-})
+UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y + 10)
+end)
+
+-- ฟังก์ชันสร้าง Toggle และ Slider แบบ Custom
+local layoutOrder = 0
+
+local function createToggle(text, initialState, callback)
+    layoutOrder = layoutOrder + 1
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 32)
+    frame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    frame.BorderSizePixel = 0
+    frame.LayoutOrder = layoutOrder
+    frame.Parent = ScrollFrame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.7, -10, 1, 0)
+    label.Position = UDim2.new(0.04, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    label.TextSize = 11
+    label.Font = Enum.Font.SourceSans
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 48, 0, 20)
+    btn.Position = UDim2.new(1, -54, 0.5, -10)
+    btn.BackgroundColor3 = initialState and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(150, 50, 50)
+    btn.Text = initialState and "ON" or "OFF"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 10
+    btn.Font = Enum.Font.SourceSansBold
+    btn.Parent = frame
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 4)
+    btnCorner.Parent = btn
+
+    local isToggled = initialState
+    btn.MouseButton1Click:Connect(function()
+        isToggled = not isToggled
+        btn.Text = isToggled and "ON" or "OFF"
+        btn.BackgroundColor3 = isToggled and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(150, 50, 50)
+        callback(isToggled)
+    end)
+end
+
+local function createSlider(text, min, max, default, step, callback)
+    layoutOrder = layoutOrder + 1
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 48)
+    frame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    frame.BorderSizePixel = 0
+    frame.LayoutOrder = layoutOrder
+    frame.Parent = ScrollFrame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.6, 0, 0, 20)
+    label.Position = UDim2.new(0.04, 0, 0, 3)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    label.TextSize = 11
+    label.Font = Enum.Font.SourceSans
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+
+    local valLabel = Instance.new("TextLabel")
+    valLabel.Size = UDim2.new(0.3, 0, 0, 20)
+    valLabel.Position = UDim2.new(0.65, 0, 0, 3)
+    valLabel.BackgroundTransparency = 1
+    valLabel.Text = tostring(default)
+    valLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    valLabel.TextSize = 11
+    valLabel.Font = Enum.Font.SourceSansBold
+    valLabel.TextXAlignment = Enum.TextXAlignment.Right
+    valLabel.Parent = frame
+
+    local sliderBar = Instance.new("TextButton")
+    sliderBar.Size = UDim2.new(0.92, 0, 0, 6)
+    sliderBar.Position = UDim2.new(0.04, 0, 0, 30)
+    sliderBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    sliderBar.Text = ""
+    sliderBar.AutoButtonColor = false
+    sliderBar.Parent = frame
+
+    local barCorner = Instance.new("UICorner")
+    barCorner.CornerRadius = UDim.new(0, 3)
+    barCorner.Parent = sliderBar
+
+    local sliderFill = Instance.new("Frame")
+    local initialRatio = math.clamp((default - min) / (max - min), 0, 1)
+    sliderFill.Size = UDim2.new(initialRatio, 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(180, 0, 255)
+    sliderFill.BorderSizePixel = 0
+    sliderFill.Parent = sliderBar
+
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(0, 3)
+    fillCorner.Parent = sliderFill
+
+    local dragging = false
+
+    local function updateSlider(input)
+        local barAbsPos = sliderBar.AbsolutePosition.X
+        local barAbsSize = sliderBar.AbsoluteSize.X
+        local mousePos = input.Position.X
+        local ratio = math.clamp((mousePos - barAbsPos) / barAbsSize, 0, 1)
+        local rawValue = min + (ratio * (max - min))
+        local steppedValue = math.floor(rawValue / step + 0.5) * step
+        steppedValue = math.clamp(steppedValue, min, max)
+
+        sliderFill.Size = UDim2.new((steppedValue - min) / (max - min), 0, 1, 0)
+        valLabel.Text = tostring(steppedValue)
+        callback(steppedValue)
+    end
+
+    sliderBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            updateSlider(input)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateSlider(input)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+-- สร้างคอนโทรล UI ตรงกับข้อมูล State
+createToggle("Enable Aimbot", State.Aimbot, function(v) State.Aimbot = v end)
+createToggle("Show FOV Circle", State.ShowFOV, function(v) State.ShowFOV = v end)
+createToggle("Team Check", State.TeamCheck, function(v) State.TeamCheck = v end)
+createToggle("Wall Check", State.WallCheck, function(v) State.WallCheck = v end)
+createToggle("Prediction Engine", State.Prediction, function(v) State.Prediction = v end)
+createToggle("ESP Wallhack", State.ESP, function(v) State.ESP = v end)
+
+createSlider("Bullet Speed", 500, 5000, State.BulletSpeed, 100, function(v) State.BulletSpeed = v end)
+createSlider("Smoothness", 0.05, 1, State.Smoothness, 0.05, function(v) State.Smoothness = v end)
+createSlider("Aimbot FOV Range", 50, 500, State.FOV, 10, function(v) State.FOV = v end)
+
+-- สลับสถานะ PiP และ Main Window
+CollapseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    PiPButton.Position = MainFrame.Position
+    PiPButton.Visible = true
+end)
+
+PiPButton.MouseButton1Click:Connect(function()
+    PiPButton.Visible = false
+    MainFrame.Position = PiPButton.Position
+    MainFrame.Visible = true
+end)

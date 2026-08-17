@@ -1,13 +1,8 @@
--- 0. Rayfield Library Setup & Notification Override
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
--- สั่งปิดการแสดง Notification และคำเตือนทั้งหมด
-Rayfield.Notify = function() end 
-
 -- 1. Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local Stats = game:GetService("Stats")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -17,18 +12,28 @@ local State = {
     TeamCheck = true,
     WallCheck = false,
     Prediction = false,
+    BulletSpeed = 1000, -- ความเร็วกระสุน (ปรับเพิ่ม/ลดใน UI ได้)
     Smoothness = 0.3,
     FOV = 150,
     ShowFOV = false,
     ESP = false
 }
 
--- 3. Dynamic Camera Helper
+-- 3. Ping Helper Function
+local function getPing()
+    local pingItem = Stats.Network.ServerStatsItem:FindFirstChild("Data Ping")
+    if pingItem then
+        return (pingItem:GetValue() / 1000)
+    end
+    return 0.05
+end
+
+-- 4. Dynamic Camera Helper
 local function getCamera()
     return Workspace.CurrentCamera
 end
 
--- 4. FOV Circle Drawing Engine
+-- 5. FOV Circle Drawing Engine
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
@@ -36,7 +41,7 @@ FOVCircle.Filled = false
 FOVCircle.Transparency = 0.7
 FOVCircle.Visible = false
 
--- 5. Target Validation Check
+-- 6. Target Validation Check
 local function isValidEnemy(player)
     if player == LocalPlayer or not player.Character then return false end
     
@@ -60,7 +65,7 @@ local function isValidEnemy(player)
     return true
 end
 
--- 6. Wall Check Function
+-- 7. Wall Check Function
 local function isVisible(targetPart)
     if not State.WallCheck then return true end
     
@@ -83,7 +88,7 @@ local function isVisible(targetPart)
     return false
 end
 
--- 7. Target Acquisition
+-- 8. Target Acquisition
 local function getClosestTarget()
     local closestPlayer = nil
     local shortestDist = State.FOV
@@ -109,7 +114,7 @@ local function getClosestTarget()
     return closestPlayer
 end
 
--- 8. Prediction Engine
+-- 9. Advanced Dynamic Prediction Engine (ปรับปรุงใหม่)
 local function getPredictedPosition(target)
     if not target or not target.Character then return nil end
     
@@ -117,19 +122,29 @@ local function getPredictedPosition(target)
     if not targetPart then return nil end  
       
     local targetPos = targetPart.Position  
+    
     if State.Prediction then  
         local rootPart = target.Character:FindFirstChild("HumanoidRootPart")  
         if rootPart then  
+            local camera = getCamera()
+            local distance = (targetPos - camera.CFrame.Position).Magnitude
+            local currentPing = getPing()
+            
+            -- คำนวณระยะเวลาเดินทางจริงของกระสุน + Ping ชดเชย
+            local timeToTarget = (distance / State.BulletSpeed) + (currentPing / 2)
             local velocity = rootPart.AssemblyLinearVelocity  
-            targetPos = targetPos + (velocity * 0.08)  
+            
+            if velocity.Magnitude > 0.5 then
+                targetPos = targetPos + (velocity * timeToTarget)  
+            end
         end  
     end  
       
     return targetPos
 end
 
--- 9. Smooth Aimbot Process
-local function processAimbot()
+-- 10. Smooth Aimbot Process (ปรับปรุงใช้ deltaTime กันสั่น)
+local function processAimbot(deltaTime)
     if not State.Aimbot then return end
     
     local target = getClosestTarget()  
@@ -138,12 +153,13 @@ local function processAimbot()
         if targetPos then  
             local camera = getCamera()  
             local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)  
-            camera.CFrame = camera.CFrame:Lerp(targetCFrame, State.Smoothness)  
+            local smoothFactor = math.clamp(State.Smoothness * deltaTime * 60, 0.01, 1)
+            camera.CFrame = camera.CFrame:Lerp(targetCFrame, smoothFactor)  
         end  
     end
 end
 
--- 10. ESP Management
+-- 11. ESP Management
 local function clearESP()
     for _, player in ipairs(Players:GetPlayers()) do
         if player.Character then
@@ -182,39 +198,47 @@ local function processESP()
     end
 end
 
--- 11. Main Loop Handling
-RunService.RenderStepped:Connect(function()
+-- 12. Main Loop Handling
+RunService.RenderStepped:Connect(function(deltaTime)
     local camera = getCamera()
     
     FOVCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)  
     FOVCircle.Radius = State.FOV  
     FOVCircle.Visible = State.ShowFOV  
       
-    processAimbot()  
+    processAimbot(deltaTime)  
     processESP()
 end)
 
--- 12. Rayfield UI Configuration (No Notifications)
+-- 13. Rayfield UI Configuration
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
 local Window = Rayfield:CreateWindow({
-    Name = "ADVANCED AIMBOT SYSTEM (FIXED)",
-    LoadingTitle = "",
-    LoadingSubtitle = "",
-    Theme = "Default",
-    DisableRayfieldPrompts = true,
-    DisableBuildWarnings = true,
+    Name = "ADVANCED AIMBOT SYSTEM (ACCURATE)",
+    LoadingTitle = "Rayfield Interface",
+    LoadingSubtitle = "by Sirius",
     ConfigurationSaving = {
-        Enabled = false
-    }
+        Enabled = false,
+        FolderName = nil,
+        FileName = "RayfieldConfig"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "noinvitelink",
+        RememberJoins = true
+    },
+    KeySystem = false
 })
 
 -- Combat Tab
 local CombatTab = Window:CreateTab("Combat", 4483362458)
+
 CombatTab:CreateSection("Aimbot Controls")
 
 CombatTab:CreateToggle({
     Name = "Enable Aimbot",
     CurrentValue = State.Aimbot,
-    Flag = "AimbotToggle",
+    Flag = "Toggle_Aimbot",
     Callback = function(Value)
         State.Aimbot = Value
     end,
@@ -223,16 +247,16 @@ CombatTab:CreateToggle({
 CombatTab:CreateToggle({
     Name = "Show FOV Circle (แสดงวงกลม FOV)",
     CurrentValue = State.ShowFOV,
-    Flag = "ShowFOVToggle",
+    Flag = "Toggle_ShowFOV",
     Callback = function(Value)
         State.ShowFOV = Value
     end,
 })
 
 CombatTab:CreateToggle({
-    Name = "Team Check (ปิดเมื่อเล่นเกมแบบไม่มีทีม/FFA)",
+    Name = "Team Check (ปิดเมื่อเล่นแบบไม่มีทีม/FFA)",
     CurrentValue = State.TeamCheck,
-    Flag = "TeamCheckToggle",
+    Flag = "Toggle_TeamCheck",
     Callback = function(Value)
         State.TeamCheck = Value
     end,
@@ -241,18 +265,30 @@ CombatTab:CreateToggle({
 CombatTab:CreateToggle({
     Name = "Wall Check (ไม่ล็อคเป้าหลังกำแพง)",
     CurrentValue = State.WallCheck,
-    Flag = "WallCheckToggle",
+    Flag = "Toggle_WallCheck",
     Callback = function(Value)
         State.WallCheck = Value
     end,
 })
 
 CombatTab:CreateToggle({
-    Name = "Prediction Engine",
+    Name = "Prediction Engine (ดักหน้าตามความเร็ว/Ping)",
     CurrentValue = State.Prediction,
-    Flag = "PredictionToggle",
+    Flag = "Toggle_Prediction",
     Callback = function(Value)
         State.Prediction = Value
+    end,
+})
+
+CombatTab:CreateSlider({
+    Name = "Bullet Speed (ปรับตามชนิดปืนในเกม)",
+    Range = {500, 5000},
+    Increment = 100,
+    Suffix = "",
+    CurrentValue = State.BulletSpeed,
+    Flag = "Slider_BulletSpeed",
+    Callback = function(Value)
+        State.BulletSpeed = Value
     end,
 })
 
@@ -262,7 +298,7 @@ CombatTab:CreateSlider({
     Increment = 0.05,
     Suffix = "",
     CurrentValue = State.Smoothness,
-    Flag = "SmoothnessSlider",
+    Flag = "Slider_Smoothness",
     Callback = function(Value)
         State.Smoothness = Value
     end,
@@ -272,9 +308,9 @@ CombatTab:CreateSlider({
     Name = "Aimbot FOV Range",
     Range = {50, 500},
     Increment = 10,
-    Suffix = "px",
+    Suffix = "",
     CurrentValue = State.FOV,
-    Flag = "FOVSlider",
+    Flag = "Slider_FOV",
     Callback = function(Value)
         State.FOV = Value
     end,
@@ -282,12 +318,13 @@ CombatTab:CreateSlider({
 
 -- Visuals Tab
 local VisualsTab = Window:CreateTab("Visuals", 4483362458)
+
 VisualsTab:CreateSection("ESP Visuals")
 
 VisualsTab:CreateToggle({
     Name = "ESP Wallhack",
     CurrentValue = State.ESP,
-    Flag = "ESPToggle",
+    Flag = "Toggle_ESP",
     Callback = function(Value)
         State.ESP = Value
     end,

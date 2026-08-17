@@ -1,4 +1,8 @@
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+-- 0. Rayfield Library Setup & Notification Override
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- สั่งปิดการแสดง Notification และคำเตือนทั้งหมด
+Rayfield.Notify = function() end 
 
 -- 1. Services
 local Players = game:GetService("Players")
@@ -190,104 +194,100 @@ RunService.RenderStepped:Connect(function()
     processESP()
 end)
 
--- 12. Wind UI Configuration
-local Window = WindUI:CreateWindow({
-    Title = "ADVANCED AIMBOT SYSTEM (FIXED)",
-    Icon = "crosshair",
-    Author = "WindUI Version",
-    Folder = "WindUI_Config",
-    Size = UDim2.fromOffset(580, 460),
-    Transparent = true,
-    Theme = "Dark",
-    SideBarWidth = 200,
-    HasOutline = true,
+-- 12. Rayfield UI Configuration (No Notifications)
+local Window = Rayfield:CreateWindow({
+    Name = "ADVANCED AIMBOT SYSTEM (FIXED)",
+    LoadingTitle = "",
+    LoadingSubtitle = "",
+    Theme = "Default",
+    DisableRayfieldPrompts = true,
+    DisableBuildWarnings = true,
+    ConfigurationSaving = {
+        Enabled = false
+    }
 })
 
 -- Combat Tab
-local CombatTab = Window:Tab({
-    Title = "Combat",
-    Icon = "swords",
-})
+local CombatTab = Window:CreateTab("Combat", 4483362458)
+CombatTab:CreateSection("Aimbot Controls")
 
-CombatTab:Section({ Title = "Aimbot Controls" })
-
-CombatTab:Toggle({
-    Title = "Enable Aimbot",
-    Value = State.Aimbot,
+CombatTab:CreateToggle({
+    Name = "Enable Aimbot",
+    CurrentValue = State.Aimbot,
+    Flag = "AimbotToggle",
     Callback = function(Value)
         State.Aimbot = Value
     end,
 })
 
-CombatTab:Toggle({
-    Title = "Show FOV Circle (แสดงวงกลม FOV)",
-    Value = State.ShowFOV,
+CombatTab:CreateToggle({
+    Name = "Show FOV Circle (แสดงวงกลม FOV)",
+    CurrentValue = State.ShowFOV,
+    Flag = "ShowFOVToggle",
     Callback = function(Value)
         State.ShowFOV = Value
     end,
 })
 
-CombatTab:Toggle({
-    Title = "Team Check (ปิดเมื่อเล่นเกมแบบไม่มีทีม/FFA)",
-    Value = State.TeamCheck,
+CombatTab:CreateToggle({
+    Name = "Team Check (ปิดเมื่อเล่นเกมแบบไม่มีทีม/FFA)",
+    CurrentValue = State.TeamCheck,
+    Flag = "TeamCheckToggle",
     Callback = function(Value)
         State.TeamCheck = Value
     end,
 })
 
-CombatTab:Toggle({
-    Title = "Wall Check (ไม่ล็อคเป้าหลังกำแพง)",
-    Value = State.WallCheck,
+CombatTab:CreateToggle({
+    Name = "Wall Check (ไม่ล็อคเป้าหลังกำแพง)",
+    CurrentValue = State.WallCheck,
+    Flag = "WallCheckToggle",
     Callback = function(Value)
         State.WallCheck = Value
     end,
 })
 
-CombatTab:Toggle({
-    Title = "Prediction Engine",
-    Value = State.Prediction,
+CombatTab:CreateToggle({
+    Name = "Prediction Engine",
+    CurrentValue = State.Prediction,
+    Flag = "PredictionToggle",
     Callback = function(Value)
         State.Prediction = Value
     end,
 })
 
-CombatTab:Slider({
-    Title = "Smoothness (ความลื่นไหล)",
-    Step = 0.05,
-    Value = {
-        Min = 0.05,
-        Max = 1,
-        Default = State.Smoothness
-    },
+CombatTab:CreateSlider({
+    Name = "Smoothness (ความลื่นไหล)",
+    Range = {0.05, 1},
+    Increment = 0.05,
+    Suffix = "",
+    CurrentValue = State.Smoothness,
+    Flag = "SmoothnessSlider",
     Callback = function(Value)
         State.Smoothness = Value
     end,
 })
 
-CombatTab:Slider({
-    Title = "Aimbot FOV Range",
-    Step = 10,
-    Value = {
-        Min = 50,
-        Max = 500,
-        Default = State.FOV
-    },
+CombatTab:CreateSlider({
+    Name = "Aimbot FOV Range",
+    Range = {50, 500},
+    Increment = 10,
+    Suffix = "px",
+    CurrentValue = State.FOV,
+    Flag = "FOVSlider",
     Callback = function(Value)
         State.FOV = Value
     end,
 })
 
 -- Visuals Tab
-local VisualsTab = Window:Tab({
-    Title = "Visuals",
-    Icon = "eye",
-})
+local VisualsTab = Window:CreateTab("Visuals", 4483362458)
+VisualsTab:CreateSection("ESP Visuals")
 
-VisualsTab:Section({ Title = "ESP Visuals" })
-
-VisualsTab:Toggle({
-    Title = "ESP Wallhack",
-    Value = State.ESP,
+VisualsTab:CreateToggle({
+    Name = "ESP Wallhack",
+    CurrentValue = State.ESP,
+    Flag = "ESPToggle",
     Callback = function(Value)
         State.ESP = Value
     end,

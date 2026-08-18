@@ -13,13 +13,14 @@ local State = {
     TeamCheck = true,
     WallCheck = false,
     Prediction = false,
-    BulletSpeed = 1000, -- ความเร็วกระสุน (ปรับเพิ่ม/ลดใน UI ได้)
+    BulletSpeed = 1000,
     Smoothness = 0.3,
     FOV = 150,
     ShowFOV = false,
-    ESP = false,
-    NameESP = false -- เพิ่มสถานะ Name ESP
+    ESP = false
 }
+
+local currentTarget = nil -- ตัวแปรล็อกเป้าหมายเพื่อลดอาการกล้องสะบัดสลับคน
 
 -- 3. Ping Helper Function
 local function getPing()
@@ -45,7 +46,7 @@ FOVCircle.Visible = false
 
 -- 6. Target Validation Check
 local function isValidEnemy(player)
-    if player == LocalPlayer or not player.Character then return false end
+    if not player or player == LocalPlayer or not player.Character then return false end
     
     local humanoid = player.Character:FindFirstChild("Humanoid")  
     local rootPart = player.Character:FindFirstChild("HumanoidRootPart")  
@@ -90,12 +91,28 @@ local function isVisible(targetPart)
     return false
 end
 
--- 8. Target Acquisition
+-- 8. Target Acquisition (ปรับปรุงให้จำเป้าหมายเดิมเพื่อกันกล้องสั่นสะบัด)
 local function getClosestTarget()
-    local closestPlayer = nil
-    local shortestDist = State.FOV
     local camera = getCamera()
     local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
+    -- ตรวจสอบก่อนว่าเป้าหมายเดิมยังอยู่ใน FOV และยังใช้ได้หรือไม่
+    if currentTarget and isValidEnemy(currentTarget) then
+        local targetPart = currentTarget.Character:FindFirstChild("Head") or currentTarget.Character:FindFirstChild("HumanoidRootPart")
+        if targetPart and isVisible(targetPart) then
+            local screenPoint, onScreen = camera:WorldToViewportPoint(targetPart.Position)
+            if onScreen then
+                local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
+                if dist <= State.FOV * 1.15 then -- ขยายระยะผ่อนปรนเล็กน้อยไม่ให้หลุดเป้าไวเกินไป
+                    return currentTarget
+                end
+            end
+        end
+    end
+
+    -- หากไม่มีเป้าหมายเดิม ค่อยค้นหาเป้าหมายใหม่ที่ใกล้ที่สุด
+    local closestPlayer = nil
+    local shortestDist = State.FOV
     
     for _, player in ipairs(Players:GetPlayers()) do  
         if isValidEnemy(player) then  
@@ -116,7 +133,7 @@ local function getClosestTarget()
     return closestPlayer
 end
 
--- 9. Advanced Dynamic Prediction Engine (ปรับปรุงใหม่)
+-- 9. Advanced Dynamic Prediction Engine
 local function getPredictedPosition(target)
     if not target or not target.Character then return nil end
     
@@ -132,8 +149,7 @@ local function getPredictedPosition(target)
             local distance = (targetPos - camera.CFrame.Position).Magnitude
             local currentPing = getPing()
             
-            -- คำนวณระยะเวลาเดินทางจริงของกระสุน + Ping ชดเชย
-            local timeToTarget = (distance / State.BulletSpeed) + (currentPing / 2)
+            local timeToTarget = (distance / math.max(State.BulletSpeed, 1)) + (currentPing / 2)
             local velocity = rootPart.AssemblyLinearVelocity  
             
             if velocity.Magnitude > 0.5 then
@@ -145,23 +161,7 @@ local function getPredictedPosition(target)
     return targetPos
 end
 
--- 10. Smooth Aimbot Process (ปรับปรุงใช้ deltaTime กันสั่น)
-local function processAimbot(deltaTime)
-    if not State.Aimbot then return end
-    
-    local target = getClosestTarget()  
-    if target then  
-        local targetPos = getPredictedPosition(target)  
-        if targetPos then  
-            local camera = getCamera()  
-            local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)  
-            local smoothFactor = math.clamp(State.Smoothness * deltaTime * 60, 0.01, 1)
-            camera.CFrame = camera.CFrame:Lerp(targetCFrame, smoothFactor)  
-        end  
-    end
-end
-
--- 11. ESP Management (Highlight Wallhack)
+-- 10. ESP Management (แยกการทำงานออกจาก Main Loop เพื่อลดความหน่วง)
 local function clearESP()
     for _, player in ipairs(Players:GetPlayers()) do
         if player.Character then
@@ -200,81 +200,52 @@ local function processESP()
     end
 end
 
--- 12. Name ESP Management (ป้ายชื่อผู้เล่นทะลุกำแพง)
-local function clearNameESP()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Character and player.Character:FindFirstChild("Head") then
-            local tag = player.Character.Head:FindFirstChild("NameESP_Tag")
-            if tag then
-                tag:Destroy()
-            end
-        end
+-- วนลูป ESP แยกต่างหากที่ความถี่ 10 Hz (ลดภาระการประมวลผลกล้อง)
+task.spawn(function()
+    while true do
+        processESP()
+        task.wait(0.1)
     end
-end
+end)
 
-local function processNameESP()
-    if not State.NameESP then
-        clearNameESP()
-        return
-    end
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if isValidEnemy(player) then
-            local char = player.Character
-            local head = char and char:FindFirstChild("Head")
-            if head then
-                local tag = head:FindFirstChild("NameESP_Tag")
-                if not tag then
-                    tag = Instance.new("BillboardGui")
-                    tag.Name = "NameESP_Tag"
-                    tag.Adornee = head
-                    tag.Size = UDim2.new(0, 150, 0, 30)
-                    tag.StudsOffset = Vector3.new(0, 2, 0)
-                    tag.AlwaysOnTop = true
-                    tag.Parent = head
-
-                    local label = Instance.new("TextLabel")
-                    label.Name = "NameLabel"
-                    label.Size = UDim2.new(1, 0, 1, 0)
-                    label.BackgroundTransparency = 1
-                    label.Text = player.DisplayName .. " (@" .. player.Name .. ")"
-                    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    label.TextStrokeTransparency = 0.2
-                    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                    label.Font = Enum.Font.SourceSansBold
-                    label.TextSize = 12
-                    label.Parent = tag
-                end
-            end
-        else
-            if player.Character and player.Character:FindFirstChild("Head") then
-                local tag = player.Character.Head:FindFirstChild("NameESP_Tag")
-                if tag then tag:Destroy() end
-            end
-        end
-    end
-end
-
--- 13. Main Loop Handling
-RunService.RenderStepped:Connect(function(deltaTime)
+-- 11. Main Camera Engine (BindToRenderStep + Frame-rate Independent Interpolation)
+RunService:UnbindFromRenderStep("AimbotCameraUpdate")
+RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Value + 1, function(deltaTime)
     local camera = getCamera()
     
+    -- อัปเดต FOV Circle
     FOVCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)  
     FOVCircle.Radius = State.FOV  
     FOVCircle.Visible = State.ShowFOV  
       
-    processAimbot(deltaTime)  
-    processESP()
-    processNameESP()
+    if not State.Aimbot then 
+        currentTarget = nil
+        return 
+    end
+    
+    currentTarget = getClosestTarget()  
+    if currentTarget then  
+        local targetPos = getPredictedPosition(currentTarget)  
+        if targetPos then  
+            local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)  
+            
+            -- ปรับคำนวณการเคลื่อนที่แบบ Exponential Decay ที่นุ่มนวลและไม่ขึ้นกับ Framerate
+            local lerpSpeed = math.clamp(State.Smoothness * 18, 0.5, 25)
+            local alpha = 1 - math.exp(-lerpSpeed * deltaTime)
+            
+            camera.CFrame = camera.CFrame:Lerp(targetCFrame, alpha)  
+        end  
+    else
+        currentTarget = nil
+    end
 end)
 
--- 14. Custom GUI Construction (Pure Luau with PiP Support)
+-- 12. Custom GUI Construction
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SnyX_CustomAimbotUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- ปุ่ม PiP สี่เหลี่ยมเลื่อนได้ (เปิดใช้งานเมื่อพับหน้าจอ)
 local PiPButton = Instance.new("TextButton")
 PiPButton.Name = "PiPButton"
 PiPButton.Size = UDim2.new(0, 50, 0, 50)
@@ -299,7 +270,6 @@ PiPStroke.Color = Color3.fromRGB(180, 0, 255)
 PiPStroke.Thickness = 2
 PiPStroke.Parent = PiPButton
 
--- Main UI Frame (หน้าต่างหลัก)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 290, 0, 360)
@@ -319,7 +289,6 @@ MainStroke.Color = Color3.fromRGB(45, 45, 45)
 MainStroke.Thickness = 1
 MainStroke.Parent = MainFrame
 
--- Title Bar (แถบหัวข้อ)
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -341,7 +310,6 @@ TitleText.Font = Enum.Font.SourceSansBold
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
 
--- ปุ่มพับหน้าจอเป็น PiP (-)
 local CollapseBtn = Instance.new("TextButton")
 CollapseBtn.Size = UDim2.new(0, 24, 0, 24)
 CollapseBtn.Position = UDim2.new(1, -29, 0.5, -12)
@@ -356,7 +324,6 @@ local CollapseCorner = Instance.new("UICorner")
 CollapseCorner.CornerRadius = UDim.new(0, 4)
 CollapseCorner.Parent = CollapseBtn
 
--- Scrolling Frame สำหรับเนื้อหาด้านใน
 local ScrollFrame = Instance.new("ScrollingFrame")
 ScrollFrame.Size = UDim2.new(1, -10, 1, -45)
 ScrollFrame.Position = UDim2.new(0, 5, 0, 40)
@@ -375,7 +342,6 @@ UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y + 10)
 end)
 
--- ฟังก์ชันสร้าง Toggle และ Slider แบบ Custom
 local layoutOrder = 0
 
 local function createToggle(text, initialState, callback)
@@ -519,20 +485,17 @@ local function createSlider(text, min, max, default, step, callback)
     end)
 end
 
--- สร้างคอนโทรล UI ตรงกับข้อมูล State
 createToggle("Enable Aimbot", State.Aimbot, function(v) State.Aimbot = v end)
 createToggle("Show FOV Circle", State.ShowFOV, function(v) State.ShowFOV = v end)
 createToggle("Team Check", State.TeamCheck, function(v) State.TeamCheck = v end)
 createToggle("Wall Check", State.WallCheck, function(v) State.WallCheck = v end)
 createToggle("Prediction Engine", State.Prediction, function(v) State.Prediction = v end)
 createToggle("ESP Wallhack", State.ESP, function(v) State.ESP = v end)
-createToggle("Name ESP", State.NameESP, function(v) State.NameESP = v end) -- ปุ่มเปิด-ปิด Name ESP
 
 createSlider("Bullet Speed", 500, 5000, State.BulletSpeed, 100, function(v) State.BulletSpeed = v end)
 createSlider("Smoothness", 0.05, 1, State.Smoothness, 0.05, function(v) State.Smoothness = v end)
 createSlider("Aimbot FOV Range", 50, 500, State.FOV, 10, function(v) State.FOV = v end)
 
--- สลับสถานะ PiP และ Main Window
 CollapseBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
     PiPButton.Position = MainFrame.Position

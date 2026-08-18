@@ -20,7 +20,7 @@ local State = {
     ESP = false
 }
 
-local currentTarget = nil -- ตัวแปรล็อกเป้าหมายเพื่อลดอาการกล้องสะบัดสลับคน
+local currentTarget = nil
 
 -- 3. Ping Helper Function
 local function getPing()
@@ -91,28 +91,12 @@ local function isVisible(targetPart)
     return false
 end
 
--- 8. Target Acquisition (ปรับปรุงให้จำเป้าหมายเดิมเพื่อกันกล้องสั่นสะบัด)
+-- 8. Target Acquisition (ค้นหาศัตรูที่ใกล้เป้าเล็งที่สุดอย่างแม่นยำ)
 local function getClosestTarget()
-    local camera = getCamera()
-    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-
-    -- ตรวจสอบก่อนว่าเป้าหมายเดิมยังอยู่ใน FOV และยังใช้ได้หรือไม่
-    if currentTarget and isValidEnemy(currentTarget) then
-        local targetPart = currentTarget.Character:FindFirstChild("Head") or currentTarget.Character:FindFirstChild("HumanoidRootPart")
-        if targetPart and isVisible(targetPart) then
-            local screenPoint, onScreen = camera:WorldToViewportPoint(targetPart.Position)
-            if onScreen then
-                local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
-                if dist <= State.FOV * 1.15 then -- ขยายระยะผ่อนปรนเล็กน้อยไม่ให้หลุดเป้าไวเกินไป
-                    return currentTarget
-                end
-            end
-        end
-    end
-
-    -- หากไม่มีเป้าหมายเดิม ค่อยค้นหาเป้าหมายใหม่ที่ใกล้ที่สุด
     local closestPlayer = nil
     local shortestDist = State.FOV
+    local camera = getCamera()
+    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
     
     for _, player in ipairs(Players:GetPlayers()) do  
         if isValidEnemy(player) then  
@@ -121,9 +105,13 @@ local function getClosestTarget()
                 local screenPoint, onScreen = camera:WorldToViewportPoint(targetPart.Position)  
                   
                 if onScreen then  
-                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude  
-                    if dist < shortestDist then  
-                        shortestDist = dist  
+                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
+                    
+                    -- ให้แต้มต่อเป้าหมายเดิม 15% (กันสลับเป้าสั่นไปมา แต่ถ้ามีคนเดินเข้าใกล้เป้าเล็งมากกว่าจะสลับทันที)
+                    local effectiveDist = (player == currentTarget) and (dist * 0.85) or dist
+                    
+                    if effectiveDist < shortestDist then  
+                        shortestDist = effectiveDist  
                         closestPlayer = player  
                     end  
                 end  
@@ -161,7 +149,7 @@ local function getPredictedPosition(target)
     return targetPos
 end
 
--- 10. ESP Management (แยกการทำงานออกจาก Main Loop เพื่อลดความหน่วง)
+-- 10. ESP Management
 local function clearESP()
     for _, player in ipairs(Players:GetPlayers()) do
         if player.Character then
@@ -200,7 +188,6 @@ local function processESP()
     end
 end
 
--- วนลูป ESP แยกต่างหากที่ความถี่ 10 Hz (ลดภาระการประมวลผลกล้อง)
 task.spawn(function()
     while true do
         processESP()
@@ -208,12 +195,11 @@ task.spawn(function()
     end
 end)
 
--- 11. Main Camera Engine (BindToRenderStep + Frame-rate Independent Interpolation)
+-- 11. Main Camera Engine
 RunService:UnbindFromRenderStep("AimbotCameraUpdate")
 RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Value + 1, function(deltaTime)
     local camera = getCamera()
     
-    -- อัปเดต FOV Circle
     FOVCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)  
     FOVCircle.Radius = State.FOV  
     FOVCircle.Visible = State.ShowFOV  
@@ -229,14 +215,11 @@ RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Val
         if targetPos then  
             local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)  
             
-            -- ปรับคำนวณการเคลื่อนที่แบบ Exponential Decay ที่นุ่มนวลและไม่ขึ้นกับ Framerate
-            local lerpSpeed = math.clamp(State.Smoothness * 18, 0.5, 25)
+            local lerpSpeed = math.clamp(State.Smoothness * 35, 1, 60)
             local alpha = 1 - math.exp(-lerpSpeed * deltaTime)
             
             camera.CFrame = camera.CFrame:Lerp(targetCFrame, alpha)  
         end  
-    else
-        currentTarget = nil
     end
 end)
 

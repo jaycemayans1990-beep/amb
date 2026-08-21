@@ -18,7 +18,7 @@ local State = {
     FOV = 150,
     ShowFOV = false,
     ESP = false,
-    ESPName = false -- เพิ่ม State สำหรับ ESP Display Name
+    ESPName = false
 }
 
 local currentTarget = nil
@@ -190,7 +190,7 @@ local function processESP()
                 if highlight then highlight:Destroy() end  
             end
 
-            -- Display Name ESP
+            -- Username ESP (เปลี่ยนแสดง player.Name)
             if State.ESPName then
                 local head = player.Character:FindFirstChild("Head")
                 if head then
@@ -207,7 +207,7 @@ local function processESP()
                         local textLabel = Instance.new("TextLabel")
                         textLabel.Size = UDim2.new(1, 0, 1, 0)
                         textLabel.BackgroundTransparency = 1
-                        textLabel.Text = player.DisplayName
+                        textLabel.Text = player.Name
                         textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
                         textLabel.TextStrokeTransparency = 0
                         textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -518,7 +518,7 @@ createToggle("Team Check", State.TeamCheck, function(v) State.TeamCheck = v end)
 createToggle("Wall Check", State.WallCheck, function(v) State.WallCheck = v end)
 createToggle("Prediction Engine", State.Prediction, function(v) State.Prediction = v end)
 createToggle("ESP Wallhack", State.ESP, function(v) State.ESP = v end)
-createToggle("ESP Display Name", State.ESPName, function(v) State.ESPName = v end)
+createToggle("ESP Username", State.ESPName, function(v) State.ESPName = v end)
 
 createSlider("Bullet Speed", 500, 5000, State.BulletSpeed, 100, function(v) State.BulletSpeed = v end)
 createSlider("Smoothness", 0.05, 1, State.Smoothness, 0.05, function(v) State.Smoothness = v end)

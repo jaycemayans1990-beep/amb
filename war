@@ -17,7 +17,8 @@ local State = {
     Smoothness = 0.3,
     FOV = 150,
     ShowFOV = false,
-    ESP = false
+    ESP = false,
+    ESPName = false -- เพิ่ม State สำหรับ ESP Display Name
 }
 
 local currentTarget = nil
@@ -91,7 +92,7 @@ local function isVisible(targetPart)
     return false
 end
 
--- 8. Target Acquisition (ค้นหาศัตรูที่ใกล้เป้าเล็งที่สุดอย่างแม่นยำ)
+-- 8. Target Acquisition
 local function getClosestTarget()
     local closestPlayer = nil
     local shortestDist = State.FOV
@@ -107,7 +108,6 @@ local function getClosestTarget()
                 if onScreen then  
                     local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
                     
-                    -- ให้แต้มต่อเป้าหมายเดิม 15% (กันสลับเป้าสั่นไปมา แต่ถ้ามีคนเดินเข้าใกล้เป้าเล็งมากกว่าจะสลับทันที)
                     local effectiveDist = (player == currentTarget) and (dist * 0.85) or dist
                     
                     if effectiveDist < shortestDist then  
@@ -157,32 +157,76 @@ local function clearESP()
             if highlight then
                 highlight:Destroy()
             end
+            local nameTag = player.Character:FindFirstChild("ESP_NameTag")
+            if nameTag then
+                nameTag:Destroy()
+            end
         end
     end
 end
 
 local function processESP()
-    if not State.ESP then
+    if not State.ESP and not State.ESPName then
         clearESP()
         return
     end
     
     for _, player in ipairs(Players:GetPlayers()) do  
         if isValidEnemy(player) then  
-            local highlight = player.Character:FindFirstChild("ESP_Highlight")  
-            if not highlight then  
-                highlight = Instance.new("Highlight")  
-                highlight.Name = "ESP_Highlight"  
-                highlight.FillColor = Color3.fromRGB(180, 0, 255)
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
-                highlight.FillTransparency = 0.15
-                highlight.OutlineTransparency = 0
-                highlight.Parent = player.Character
-            end  
+            -- Highlight ESP
+            if State.ESP then
+                local highlight = player.Character:FindFirstChild("ESP_Highlight")  
+                if not highlight then  
+                    highlight = Instance.new("Highlight")  
+                    highlight.Name = "ESP_Highlight"  
+                    highlight.FillColor = Color3.fromRGB(180, 0, 255)
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+                    highlight.FillTransparency = 0.15
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = player.Character
+                end  
+            else
+                local highlight = player.Character:FindFirstChild("ESP_Highlight")  
+                if highlight then highlight:Destroy() end  
+            end
+
+            -- Display Name ESP
+            if State.ESPName then
+                local head = player.Character:FindFirstChild("Head")
+                if head then
+                    local nameTag = player.Character:FindFirstChild("ESP_NameTag")
+                    if not nameTag then
+                        nameTag = Instance.new("BillboardGui")
+                        nameTag.Name = "ESP_NameTag"
+                        nameTag.Adornee = head
+                        nameTag.Size = UDim2.new(0, 150, 0, 30)
+                        nameTag.StudsOffset = Vector3.new(0, 2, 0)
+                        nameTag.AlwaysOnTop = true
+                        nameTag.Parent = player.Character
+
+                        local textLabel = Instance.new("TextLabel")
+                        textLabel.Size = UDim2.new(1, 0, 1, 0)
+                        textLabel.BackgroundTransparency = 1
+                        textLabel.Text = player.DisplayName
+                        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        textLabel.TextStrokeTransparency = 0
+                        textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                        textLabel.Font = Enum.Font.SourceSansBold
+                        textLabel.TextSize = 14
+                        textLabel.Parent = nameTag
+                    end
+                end
+            else
+                local nameTag = player.Character:FindFirstChild("ESP_NameTag")
+                if nameTag then nameTag:Destroy() end
+            end
         else  
             if player.Character then  
                 local highlight = player.Character:FindFirstChild("ESP_Highlight")  
                 if highlight then highlight:Destroy() end  
+
+                local nameTag = player.Character:FindFirstChild("ESP_NameTag")
+                if nameTag then nameTag:Destroy() end
             end  
         end  
     end
@@ -474,6 +518,7 @@ createToggle("Team Check", State.TeamCheck, function(v) State.TeamCheck = v end)
 createToggle("Wall Check", State.WallCheck, function(v) State.WallCheck = v end)
 createToggle("Prediction Engine", State.Prediction, function(v) State.Prediction = v end)
 createToggle("ESP Wallhack", State.ESP, function(v) State.ESP = v end)
+createToggle("ESP Display Name", State.ESPName, function(v) State.ESPName = v end)
 
 createSlider("Bullet Speed", 500, 5000, State.BulletSpeed, 100, function(v) State.BulletSpeed = v end)
 createSlider("Smoothness", 0.05, 1, State.Smoothness, 0.05, function(v) State.Smoothness = v end)

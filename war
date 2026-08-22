@@ -9,15 +9,15 @@ local LocalPlayer = Players.LocalPlayer
 
 -- 2. Global States
 local State = {
-    Aimbot = false,
+    Aimbot = true,
     TeamCheck = true,
     WallCheck = false,
-    Prediction = false,
-    BulletSpeed = 1000,
+    Prediction = true,
+    BulletSpeed = 3000,
     Smoothness = 0.3,
     FOV = 150,
     ShowFOV = false,
-    ESP = false,
+    ESP = true,
     ESPName = false
 }
 

@@ -7,14 +7,14 @@ local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- 2. Global States
+-- 2. Global States (ปรับตามสั่ง)
 local State = {
     Aimbot = true,
     TeamCheck = true,
     WallCheck = false,
-    Prediction = true,
-    BulletSpeed = 3000,
-    Smoothness = 0.3,
+    Prediction = false,      -- ปิดการทำนาย กระสุนไปตรงจุดปัจจุบัน
+    BulletSpeed = 9999,      -- ตั้งสูงเผื่อเปิด
+    Smoothness = 0.05,       -- เร็วจัด ไม่มีการหน่วง
     FOV = 150,
     ShowFOV = false,
     ESP = true,
@@ -121,7 +121,7 @@ local function getClosestTarget()
     return closestPlayer
 end
 
--- 9. Advanced Dynamic Prediction Engine
+-- 9. Advanced Dynamic Prediction Engine (แก้ให้ถ้าปิดก็ส่งตำแหน่งปัจจุบัน)
 local function getPredictedPosition(target)
     if not target or not target.Character then return nil end
     
@@ -267,7 +267,7 @@ RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Val
     end
 end)
 
--- 12. Custom GUI Construction (แก้แล้ว)
+-- 12. Custom GUI Construction
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SnyX_CustomAimbotUI"
 ScreenGui.ResetOnSpawn = false
@@ -339,8 +339,6 @@ TitleText.TextSize = 13
 TitleText.Font = Enum.Font.SourceSansBold
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
-
--- (ไม่มีปุ่ม Collapse แล้ว)
 
 local ScrollFrame = Instance.new("ScrollingFrame")
 ScrollFrame.Size = UDim2.new(1, -10, 1, -45)
@@ -519,5 +517,4 @@ createSlider("Aimbot FOV Range", 50, 500, State.FOV, 10, function(v) State.FOV =
 -- ===== Event: กดโล้โก้เพื่อพับ/เรียก UI =====
 LogoButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
-    -- LogoButton ยังคงแสดงตลอด
 end)

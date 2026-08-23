@@ -190,7 +190,7 @@ local function processESP()
                 if highlight then highlight:Destroy() end  
             end
 
-            -- Username ESP (เปลี่ยนแสดง player.Name)
+            -- Username ESP
             if State.ESPName then
                 local head = player.Character:FindFirstChild("Head")
                 if head then
@@ -267,36 +267,38 @@ RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Val
     end
 end)
 
--- 12. Custom GUI Construction
+-- 12. Custom GUI Construction (แก้แล้ว)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SnyX_CustomAimbotUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local PiPButton = Instance.new("TextButton")
-PiPButton.Name = "PiPButton"
-PiPButton.Size = UDim2.new(0, 50, 0, 50)
-PiPButton.Position = UDim2.new(0.05, 0, 0.2, 0)
-PiPButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-PiPButton.BorderSizePixel = 0
-PiPButton.Text = "AIM"
-PiPButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-PiPButton.TextSize = 13
-PiPButton.Font = Enum.Font.SourceSansBold
-PiPButton.Active = true
-PiPButton.Draggable = true
-PiPButton.Visible = false
-PiPButton.Parent = ScreenGui
+-- ===== ปุ่มโล้โก้ (toggle หลัก) =====
+local LogoButton = Instance.new("TextButton")
+LogoButton.Name = "LogoButton"
+LogoButton.Size = UDim2.new(0, 50, 0, 50)
+LogoButton.Position = UDim2.new(0.05, 0, 0.2, 0)
+LogoButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+LogoButton.BorderSizePixel = 0
+LogoButton.Text = "SnyX"
+LogoButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+LogoButton.TextSize = 16
+LogoButton.Font = Enum.Font.SourceSansBold
+LogoButton.Active = true
+LogoButton.Draggable = true
+LogoButton.Visible = true
+LogoButton.Parent = ScreenGui
 
-local PiPCorner = Instance.new("UICorner")
-PiPCorner.CornerRadius = UDim.new(0, 10)
-PiPCorner.Parent = PiPButton
+local LogoCorner = Instance.new("UICorner")
+LogoCorner.CornerRadius = UDim.new(0, 10)
+LogoCorner.Parent = LogoButton
 
-local PiPStroke = Instance.new("UIStroke")
-PiPStroke.Color = Color3.fromRGB(180, 0, 255)
-PiPStroke.Thickness = 2
-PiPStroke.Parent = PiPButton
+local LogoStroke = Instance.new("UIStroke")
+LogoStroke.Color = Color3.fromRGB(180, 0, 255)
+LogoStroke.Thickness = 2
+LogoStroke.Parent = LogoButton
 
+-- ===== Main Frame (UI หลัก) =====
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 290, 0, 360)
@@ -305,6 +307,7 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
+MainFrame.Visible = true
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
@@ -337,19 +340,7 @@ TitleText.Font = Enum.Font.SourceSansBold
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
 
-local CollapseBtn = Instance.new("TextButton")
-CollapseBtn.Size = UDim2.new(0, 24, 0, 24)
-CollapseBtn.Position = UDim2.new(1, -29, 0.5, -12)
-CollapseBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-CollapseBtn.Text = "-"
-CollapseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CollapseBtn.TextSize = 16
-CollapseBtn.Font = Enum.Font.SourceSansBold
-CollapseBtn.Parent = TitleBar
-
-local CollapseCorner = Instance.new("UICorner")
-CollapseCorner.CornerRadius = UDim.new(0, 4)
-CollapseCorner.Parent = CollapseBtn
+-- (ไม่มีปุ่ม Collapse แล้ว)
 
 local ScrollFrame = Instance.new("ScrollingFrame")
 ScrollFrame.Size = UDim2.new(1, -10, 1, -45)
@@ -512,6 +503,7 @@ local function createSlider(text, min, max, default, step, callback)
     end)
 end
 
+-- สร้าง Toggle และ Slider
 createToggle("Enable Aimbot", State.Aimbot, function(v) State.Aimbot = v end)
 createToggle("Show FOV Circle", State.ShowFOV, function(v) State.ShowFOV = v end)
 createToggle("Team Check", State.TeamCheck, function(v) State.TeamCheck = v end)
@@ -524,14 +516,8 @@ createSlider("Bullet Speed", 500, 5000, State.BulletSpeed, 100, function(v) Stat
 createSlider("Smoothness", 0.05, 1, State.Smoothness, 0.05, function(v) State.Smoothness = v end)
 createSlider("Aimbot FOV Range", 50, 500, State.FOV, 10, function(v) State.FOV = v end)
 
-CollapseBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    PiPButton.Position = MainFrame.Position
-    PiPButton.Visible = true
-end)
-
-PiPButton.MouseButton1Click:Connect(function()
-    PiPButton.Visible = false
-    MainFrame.Position = PiPButton.Position
-    MainFrame.Visible = true
+-- ===== Event: กดโล้โก้เพื่อพับ/เรียก UI =====
+LogoButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+    -- LogoButton ยังคงแสดงตลอด
 end)

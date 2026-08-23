@@ -13,8 +13,8 @@ local State = {
     TeamCheck = true,
     WallCheck = false,
     Prediction = false,      -- ปิดการทำนาย กระสุนไปตรงจุดปัจจุบัน
-    BulletSpeed = 9999,      -- ตั้งสูงเผื่อเปิด
-    Smoothness = 0.05,       -- เร็วจัด ไม่มีการหน่วง
+    BulletSpeed = 9999,      -- ตั้งสูงไว้
+    Smoothness = 1.0,        -- แก้แล้ว! ตั้งสูงสุด ให้ snap ทันที ไม่มีโค้ง
     FOV = 150,
     ShowFOV = false,
     ESP = true,
@@ -121,7 +121,7 @@ local function getClosestTarget()
     return closestPlayer
 end
 
--- 9. Advanced Dynamic Prediction Engine (แก้ให้ถ้าปิดก็ส่งตำแหน่งปัจจุบัน)
+-- 9. Advanced Dynamic Prediction Engine (ปิดอยู่ แต่ถ้าเปิดให้ทำงาน)
 local function getPredictedPosition(target)
     if not target or not target.Character then return nil end
     
@@ -239,7 +239,7 @@ task.spawn(function()
     end
 end)
 
--- 11. Main Camera Engine
+-- 11. Main Camera Engine (แก้ส่วน lerp ให้ snap ทันที)
 RunService:UnbindFromRenderStep("AimbotCameraUpdate")
 RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Value + 1, function(deltaTime)
     local camera = getCamera()
@@ -259,7 +259,8 @@ RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Val
         if targetPos then  
             local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)  
             
-            local lerpSpeed = math.clamp(State.Smoothness * 35, 1, 60)
+            -- ยิ่ง Smoothness สูง (1.0) จะยิ่ง snap ทันที ไม่มีโค้ง
+            local lerpSpeed = math.clamp(State.Smoothness * 60, 1, 120) 
             local alpha = 1 - math.exp(-lerpSpeed * deltaTime)
             
             camera.CFrame = camera.CFrame:Lerp(targetCFrame, alpha)  
@@ -511,7 +512,7 @@ createToggle("ESP Wallhack", State.ESP, function(v) State.ESP = v end)
 createToggle("ESP Username", State.ESPName, function(v) State.ESPName = v end)
 
 createSlider("Bullet Speed", 500, 5000, State.BulletSpeed, 100, function(v) State.BulletSpeed = v end)
-createSlider("Smoothness", 0.05, 1, State.Smoothness, 0.05, function(v) State.Smoothness = v end)
+createSlider("Smoothness", 0.05, 1.0, State.Smoothness, 0.05, function(v) State.Smoothness = v end) -- default ตอนนี้คือ 1.0
 createSlider("Aimbot FOV Range", 50, 500, State.FOV, 10, function(v) State.FOV = v end)
 
 -- ===== Event: กดโล้โก้เพื่อพับ/เรียก UI =====

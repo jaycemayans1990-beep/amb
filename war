@@ -7,7 +7,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- 2. Global States
+-- 2. Global States (เพิ่ม SnapDistance)
 local State = {
     Aimbot = true,
     TeamCheck = true,
@@ -18,7 +18,8 @@ local State = {
     FOV = 150,
     ShowFOV = false,
     ESP = true,
-    ESPName = false
+    ESPName = false,
+    SnapDistance = 50   -- <-- ใหม่! ระยะที่ใช้ snap
 }
 
 local currentTarget = nil
@@ -239,7 +240,7 @@ task.spawn(function()
     end
 end)
 
--- 11. Main Camera Engine
+-- 11. Main Camera Engine (แก้ไขแล้ว เพิ่ม Snap logic)
 RunService:UnbindFromRenderStep("AimbotCameraUpdate")
 RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Value + 1, function(deltaTime)
     local camera = getCamera()
@@ -259,15 +260,28 @@ RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Val
         if targetPos then  
             local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)  
             
-            local lerpSpeed = math.clamp(State.Smoothness * 35, 1, 60)
-            local alpha = 1 - math.exp(-lerpSpeed * deltaTime)
+            -- ===== เริ่มของใหม่: คำนวณระยะจากศูนย์กลางหน้าจอ =====
+            local screenPoint, onScreen = camera:WorldToViewportPoint(targetPos)
+            local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+            local distFromCenter = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
+            
+            local alpha
+            if distFromCenter < State.SnapDistance then
+                -- ถ้าใกล้ศูนย์กลาง ให้ snap ทันที (alpha = 1)
+                alpha = 1
+            else
+                -- ใช้ smoothness ปกติ
+                local lerpSpeed = math.clamp(State.Smoothness * 35, 1, 60)
+                alpha = 1 - math.exp(-lerpSpeed * deltaTime)
+            end
+            -- ===== จบของใหม่ =====
             
             camera.CFrame = camera.CFrame:Lerp(targetCFrame, alpha)  
         end  
     end
 end)
 
--- 12. Custom GUI Construction (แก้แล้ว)
+-- 12. Custom GUI Construction (เพิ่ม Slider Snap Distance)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SnyX_CustomAimbotUI"
 ScreenGui.ResetOnSpawn = false
@@ -301,7 +315,7 @@ LogoStroke.Parent = LogoButton
 -- ===== Main Frame (UI หลัก) =====
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 290, 0, 360)
+MainFrame.Size = UDim2.new(0, 290, 0, 400)  -- ขยายความสูงนิดหน่อย
 MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 0
@@ -339,8 +353,6 @@ TitleText.TextSize = 13
 TitleText.Font = Enum.Font.SourceSansBold
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
-
--- (ไม่มีปุ่ม Collapse แล้ว)
 
 local ScrollFrame = Instance.new("ScrollingFrame")
 ScrollFrame.Size = UDim2.new(1, -10, 1, -45)
@@ -503,7 +515,7 @@ local function createSlider(text, min, max, default, step, callback)
     end)
 end
 
--- สร้าง Toggle และ Slider
+-- สร้าง Toggle
 createToggle("Enable Aimbot", State.Aimbot, function(v) State.Aimbot = v end)
 createToggle("Show FOV Circle", State.ShowFOV, function(v) State.ShowFOV = v end)
 createToggle("Team Check", State.TeamCheck, function(v) State.TeamCheck = v end)
@@ -512,12 +524,13 @@ createToggle("Prediction Engine", State.Prediction, function(v) State.Prediction
 createToggle("ESP Wallhack", State.ESP, function(v) State.ESP = v end)
 createToggle("ESP Username", State.ESPName, function(v) State.ESPName = v end)
 
+-- สร้าง Slider (เพิ่ม Snap Distance)
 createSlider("Bullet Speed", 500, 5000, State.BulletSpeed, 100, function(v) State.BulletSpeed = v end)
 createSlider("Smoothness", 0.05, 1, State.Smoothness, 0.05, function(v) State.Smoothness = v end)
 createSlider("Aimbot FOV Range", 50, 500, State.FOV, 10, function(v) State.FOV = v end)
+createSlider("Snap Distance (px)", 0, 200, State.SnapDistance, 5, function(v) State.SnapDistance = v end)  -- <-- ใหม่!
 
 -- ===== Event: กดโล้โก้เพื่อพับ/เรียก UI =====
 LogoButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
-    -- LogoButton ยังคงแสดงตลอด
 end)

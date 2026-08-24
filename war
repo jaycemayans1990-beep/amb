@@ -4,7 +4,6 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Stats = game:GetService("Stats")
 local UserInputService = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -19,8 +18,7 @@ local State = {
     FOV = 150,
     ShowFOV = false,
     ESP = true,
-    ESPName = false,
-    SnapDistance = 50
+    ESPName = false
 }
 
 local currentTarget = nil
@@ -39,18 +37,13 @@ local function getCamera()
     return Workspace.CurrentCamera
 end
 
--- 5. FOV Circle Drawing Engine (ลบตัวเก่าถ้าเคยรัน)
-if getgenv().SnyX_FOVCircle then
-    pcall(function() getgenv().SnyX_FOVCircle:Remove() end)
-end
-
+-- 5. FOV Circle Drawing Engine
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 FOVCircle.Filled = false
 FOVCircle.Transparency = 0.7
 FOVCircle.Visible = false
-getgenv().SnyX_FOVCircle = FOVCircle
 
 -- 6. Target Validation Check
 local function isValidEnemy(player)
@@ -76,7 +69,7 @@ local function isValidEnemy(player)
     return true
 end
 
--- 7. Wall Check Function (แก้ไขบั้ก Nil Character)
+-- 7. Wall Check Function
 local function isVisible(targetPart)
     if not State.WallCheck then return true end
     
@@ -87,12 +80,7 @@ local function isVisible(targetPart)
       
     local raycastParams = RaycastParams.new()  
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude  
-    
-    local filterList = {camera}
-    if LocalPlayer.Character then
-        table.insert(filterList, LocalPlayer.Character)
-    end
-    raycastParams.FilterDescendantsInstances = filterList
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, camera}  
     raycastParams.IgnoreWater = true  
       
     local result = Workspace:Raycast(origin, direction, raycastParams)  
@@ -119,6 +107,7 @@ local function getClosestTarget()
                   
                 if onScreen then  
                     local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
+                    
                     local effectiveDist = (player == currentTarget) and (dist * 0.85) or dist
                     
                     if effectiveDist < shortestDist then  
@@ -149,9 +138,9 @@ local function getPredictedPosition(target)
             local currentPing = getPing()
             
             local timeToTarget = (distance / math.max(State.BulletSpeed, 1)) + (currentPing / 2)
-            local velocity = rootPart.AssemblyLinearVelocity or rootPart.Velocity
+            local velocity = rootPart.AssemblyLinearVelocity  
             
-            if velocity and velocity.Magnitude > 0.5 then
+            if velocity.Magnitude > 0.5 then
                 targetPos = targetPos + (velocity * timeToTarget)  
             end
         end  
@@ -165,9 +154,13 @@ local function clearESP()
     for _, player in ipairs(Players:GetPlayers()) do
         if player.Character then
             local highlight = player.Character:FindFirstChild("ESP_Highlight")
-            if highlight then highlight:Destroy() end
+            if highlight then
+                highlight:Destroy()
+            end
             local nameTag = player.Character:FindFirstChild("ESP_NameTag")
-            if nameTag then nameTag:Destroy() end
+            if nameTag then
+                nameTag:Destroy()
+            end
         end
     end
 end
@@ -180,6 +173,7 @@ local function processESP()
     
     for _, player in ipairs(Players:GetPlayers()) do  
         if isValidEnemy(player) then  
+            -- Highlight ESP
             if State.ESP then
                 local highlight = player.Character:FindFirstChild("ESP_Highlight")  
                 if not highlight then  
@@ -196,6 +190,7 @@ local function processESP()
                 if highlight then highlight:Destroy() end  
             end
 
+            -- Username ESP
             if State.ESPName then
                 local head = player.Character:FindFirstChild("Head")
                 if head then
@@ -244,15 +239,12 @@ task.spawn(function()
     end
 end)
 
--- 11. Main Camera Engine (แก้ไขบั้ก Snap นอกจอ & TopBar Inset)
+-- 11. Main Camera Engine
 RunService:UnbindFromRenderStep("AimbotCameraUpdate")
 RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Value + 1, function(deltaTime)
     local camera = getCamera()
-    local guiInset = GuiService:GetGuiInset()
     
-    -- คำนวณจุดศูนย์กลางจอแบบชดเชยค่า Inset
-    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-    FOVCircle.Position = screenCenter + Vector2.new(0, guiInset.Y / 2)
+    FOVCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)  
     FOVCircle.Radius = State.FOV  
     FOVCircle.Visible = State.ShowFOV  
       
@@ -267,36 +259,21 @@ RunService:BindToRenderStep("AimbotCameraUpdate", Enum.RenderPriority.Camera.Val
         if targetPos then  
             local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)  
             
-            local screenPoint, onScreen = camera:WorldToViewportPoint(targetPos)
+            local lerpSpeed = math.clamp(State.Smoothness * 35, 1, 60)
+            local alpha = 1 - math.exp(-lerpSpeed * deltaTime)
             
-            if onScreen then
-                local distFromCenter = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
-                
-                local alpha
-                if distFromCenter < State.SnapDistance then
-                    alpha = 1
-                else
-                    local lerpSpeed = math.clamp(State.Smoothness * 35, 1, 60)
-                    alpha = 1 - math.exp(-lerpSpeed * deltaTime)
-                end
-                
-                camera.CFrame = camera.CFrame:Lerp(targetCFrame, alpha)  
-            end
+            camera.CFrame = camera.CFrame:Lerp(targetCFrame, alpha)  
         end  
     end
 end)
 
--- 12. Custom GUI Construction
+-- 12. Custom GUI Construction (แก้แล้ว)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SnyX_CustomAimbotUI"
 ScreenGui.ResetOnSpawn = false
-
--- ลบ UI เก่าหากมีอยู่
-local existingUI = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild(ScreenGui.Name)
-if existingUI then existingUI:Destroy() end
-
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
+-- ===== ปุ่มโล้โก้ (toggle หลัก) =====
 local LogoButton = Instance.new("TextButton")
 LogoButton.Name = "LogoButton"
 LogoButton.Size = UDim2.new(0, 50, 0, 50)
@@ -321,9 +298,10 @@ LogoStroke.Color = Color3.fromRGB(180, 0, 255)
 LogoStroke.Thickness = 2
 LogoStroke.Parent = LogoButton
 
+-- ===== Main Frame (UI หลัก) =====
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 290, 0, 400)
+MainFrame.Size = UDim2.new(0, 290, 0, 360)
 MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 0
@@ -361,6 +339,8 @@ TitleText.TextSize = 13
 TitleText.Font = Enum.Font.SourceSansBold
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
+
+-- (ไม่มีปุ่ม Collapse แล้ว)
 
 local ScrollFrame = Instance.new("ScrollingFrame")
 ScrollFrame.Size = UDim2.new(1, -10, 1, -45)
@@ -429,9 +409,6 @@ local function createToggle(text, initialState, callback)
     end)
 end
 
--- แก้ไข Slider ไม่ให้เชื่อม Event ซ้ำซ้อน
-local activeSliderUpdate = nil
-
 local function createSlider(text, min, max, default, step, callback)
     layoutOrder = layoutOrder + 1
     local frame = Instance.new("Frame")
@@ -490,6 +467,8 @@ local function createSlider(text, min, max, default, step, callback)
     fillCorner.CornerRadius = UDim.new(0, 3)
     fillCorner.Parent = sliderFill
 
+    local dragging = false
+
     local function updateSlider(input)
         local barAbsPos = sliderBar.AbsolutePosition.X
         local barAbsSize = sliderBar.AbsoluteSize.X
@@ -506,28 +485,25 @@ local function createSlider(text, min, max, default, step, callback)
 
     sliderBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            activeSliderUpdate = updateSlider
-            MainFrame.Draggable = false
+            dragging = true
             updateSlider(input)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateSlider(input)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
         end
     end)
 end
 
--- Global Input Handler สำหรับ Slider (แก้ไข Event Leak)
-UserInputService.InputChanged:Connect(function(input)
-    if activeSliderUpdate and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        activeSliderUpdate(input)
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        activeSliderUpdate = nil
-        MainFrame.Draggable = true
-    end
-end)
-
--- สร้าง Toggle Controls
+-- สร้าง Toggle และ Slider
 createToggle("Enable Aimbot", State.Aimbot, function(v) State.Aimbot = v end)
 createToggle("Show FOV Circle", State.ShowFOV, function(v) State.ShowFOV = v end)
 createToggle("Team Check", State.TeamCheck, function(v) State.TeamCheck = v end)
@@ -536,13 +512,12 @@ createToggle("Prediction Engine", State.Prediction, function(v) State.Prediction
 createToggle("ESP Wallhack", State.ESP, function(v) State.ESP = v end)
 createToggle("ESP Username", State.ESPName, function(v) State.ESPName = v end)
 
--- สร้าง Slider Controls
 createSlider("Bullet Speed", 500, 5000, State.BulletSpeed, 100, function(v) State.BulletSpeed = v end)
 createSlider("Smoothness", 0.05, 1, State.Smoothness, 0.05, function(v) State.Smoothness = v end)
 createSlider("Aimbot FOV Range", 50, 500, State.FOV, 10, function(v) State.FOV = v end)
-createSlider("Snap Distance (px)", 0, 200, State.SnapDistance, 5, function(v) State.SnapDistance = v end)
 
--- Toggle Main UI
+-- ===== Event: กดโล้โก้เพื่อพับ/เรียก UI =====
 LogoButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
+    -- LogoButton ยังคงแสดงตลอด
 end)
